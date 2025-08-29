@@ -140,7 +140,7 @@ export default function GridCell({
                 // This is a cross-origin frame, which is normal
                 // The real errors will be caught by the browser's security policies
               }
-            } catch (error) {
+            } catch {
               handleIframeError();
             }
           }}
