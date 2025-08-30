@@ -12,8 +12,6 @@ import {
 import { Input } from "./ui/input";
 import { Share2, Copy, Check } from "lucide-react";
 import { useState } from "react";
-import { createShareService } from "@/lib/services/shareService";
-import type { MultiTrackState } from "@/lib/services/shareService";
 
 interface MultiTrackShareButtonProps {
   urls: string[];
@@ -38,12 +36,20 @@ export default function MultiTrackShareButton({
     setIsCheckingExisting(true);
 
     try {
-      const shareService = createShareService();
-      const multiTrackState: MultiTrackState = { urls };
-
       // Check if an existing share exists
-      const result =
-        await shareService.findOrCreateMultiTrackShare(multiTrackState);
+      const response = await fetch("/api/share/multi-track", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ urls }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create share");
+      }
+
+      const result = await response.json();
 
       if (result.success && result.shareUrl) {
         setShareUrl(result.shareUrl);
@@ -73,11 +79,19 @@ export default function MultiTrackShareButton({
     setError("");
 
     try {
-      const shareService = createShareService();
-      const multiTrackState: MultiTrackState = { urls };
+      const response = await fetch("/api/share/multi-track", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ urls }),
+      });
 
-      const result =
-        await shareService.findOrCreateMultiTrackShare(multiTrackState);
+      if (!response.ok) {
+        throw new Error("Failed to create share");
+      }
+
+      const result = await response.json();
 
       if (result.success && result.shareUrl) {
         setShareUrl(result.shareUrl);

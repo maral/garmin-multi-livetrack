@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { createShareService, type GridState } from "../services";
+import { useState } from "react";
+import type { GridState } from "../services";
 
 export interface UseShareDialogOptions {
   rows: number;
@@ -9,78 +9,73 @@ export interface UseShareDialogOptions {
 
 export interface UseShareDialogReturn {
   isOpen: boolean;
-  shareUrl: string;
   isLoading: boolean;
   isCheckingExisting: boolean;
   isCopied: boolean;
-  error: string;
   hasExistingShare: boolean;
+  shareUrl: string;
+  error: string;
   openDialog: () => void;
   closeDialog: () => void;
   createNewShare: () => Promise<void>;
   copyToClipboard: () => Promise<void>;
 }
 
-export function useShareDialog({
-  rows,
-  cols,
-  cellData,
-}: UseShareDialogOptions): UseShareDialogReturn {
+export function useShareDialog(options: UseShareDialogOptions): UseShareDialogReturn {
   const [isOpen, setIsOpen] = useState(false);
-  const [shareUrl, setShareUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingExisting, setIsCheckingExisting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [error, setError] = useState("");
   const [hasExistingShare, setHasExistingShare] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
+  const [error, setError] = useState("");
 
-  const lastCheckedStateRef = useRef<string>("");
-  const shareService = useRef(createShareService());
-
-  // Check for existing share when dialog opens
-  useEffect(() => {
-    if (isOpen && !hasExistingShare && !shareUrl) {
-      const gridState: GridState = { rows, cols, cellData };
-      const currentStateHash = JSON.stringify({ rows, cols, cellData }); // Simple hash for comparison
-
-      // Only check if we haven't checked this exact state before
-      if (lastCheckedStateRef.current !== currentStateHash) {
-        lastCheckedStateRef.current = currentStateHash;
-
-        const checkExisting = async () => {
-          setIsCheckingExisting(true);
-          setError("");
-
-          try {
-            const result =
-              await shareService.current.hasExistingShare(gridState);
-
-            if (result && result.success) {
-              setShareUrl(result.shareUrl!);
-              setHasExistingShare(true);
-            }
-          } catch (err) {
-            console.error("Error checking for existing share:", err);
-          } finally {
-            setIsCheckingExisting(false);
-          }
-        };
-
-        checkExisting();
-      }
-    }
-  }, [isOpen, hasExistingShare, shareUrl, rows, cols, cellData]);
-
-  const openDialog = () => setIsOpen(true);
-
-  const closeDialog = () => {
-    setIsOpen(false);
-    // Reset state when dialog closes
+  const resetState = () => {
+    setHasExistingShare(false);
     setShareUrl("");
     setError("");
     setIsCopied(false);
-    setHasExistingShare(false);
-    lastCheckedStateRef.current = ""; // Reset the ref so we can check again next time
+  };
+
+  const openDialog = async () => {
+    resetState();
+    setIsOpen(true);
+    setIsCheckingExisting(true);
+
+    try {
+      const gridState: GridState = {
+        rows: options.rows,
+        cols: options.cols,
+        cellData: options.cellData,
+      };
+
+      const response = await fetch("/api/share/grid/check", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ gridState }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to check existing share");
+      }
+
+      const { hasExisting } = await response.json();
+      setHasExistingShare(hasExisting);
+    } catch (err) {
+      console.error("Error checking existing share:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to check existing share"
+      );
+    } finally {
+      setIsCheckingExisting(false);
+    }
+  };
+
+  const closeDialog = () => {
+    setIsOpen(false);
+    resetState();
   };
 
   const createNewShare = async () => {
@@ -88,20 +83,34 @@ export function useShareDialog({
     setError("");
 
     try {
-      const gridState: GridState = { rows, cols, cellData };
-      const result = await shareService.current.findOrCreateShare(gridState);
+      const gridState: GridState = {
+        rows: options.rows,
+        cols: options.cols,
+        cellData: options.cellData,
+      };
 
-      if (result.success) {
-        setShareUrl(result.shareUrl!);
-        setHasExistingShare(result.isExisting || false);
+      const response = await fetch("/api/share/grid", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ gridState }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create share");
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.shareUrl) {
+        setShareUrl(result.shareUrl);
       } else {
-        setError(
-          result.error || "Failed to create share link. Please try again."
-        );
+        throw new Error(result.error || "Failed to create share");
       }
     } catch (err) {
-      console.error("Error creating share link:", err);
-      setError("Failed to create share link. Please try again.");
+      console.error("Error creating share:", err);
+      setError(err instanceof Error ? err.message : "Failed to create share");
     } finally {
       setIsLoading(false);
     }
@@ -114,17 +123,18 @@ export function useShareDialog({
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy to clipboard:", err);
+      setError("Failed to copy to clipboard");
     }
   };
 
   return {
     isOpen,
-    shareUrl,
     isLoading,
     isCheckingExisting,
     isCopied,
-    error,
     hasExistingShare,
+    shareUrl,
+    error,
     openDialog,
     closeDialog,
     createNewShare,

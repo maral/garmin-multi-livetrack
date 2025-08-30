@@ -20,6 +20,10 @@ export const useEditingState = (initialUrls: string[] = []) => {
     setIsEditing(false);
   };
 
+  const completeEditing = () => {
+    setIsEditing(false);
+  };
+
   const saveOriginalUrls = (urlString: string) => {
     setOriginalUrls(urlString);
   };
@@ -32,6 +36,7 @@ export const useEditingState = (initialUrls: string[] = []) => {
     startEditing,
     cancelEditing,
     resetForm,
+    completeEditing,
     saveOriginalUrls,
   };
 };

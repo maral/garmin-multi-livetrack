@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -51,6 +52,9 @@ export default function ShareButton({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Share Grid Layout</DialogTitle>
+          <DialogDescription>
+            Create a shareable link for your current grid layout and URLs.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           {isCheckingExisting && (

@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
-  parseAnyGarminUrl,
-  fetchGarminTrackingData,
+  parseGarminUrl,
+  fetchGarminTrackingDataBatch,
+  expandGarminUrlsBatch,
   isValidGarminUrl,
 } from "@/lib/garmin-api";
 import { ATHLETE_COLORS, DEFAULT_MAP_CENTER } from "@/lib/constants";
@@ -11,67 +12,73 @@ export const useAthleteManagement = () => {
   const [athletes, setAthletes] = useState<AthleteData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_MAP_CENTER);
-
-  const updateAthleteData = async (athlete: AthleteData): Promise<AthleteData> => {
-    try {
-      // Get the last timestamp for incremental updates
-      const lastTimestamp =
-        athlete.coordinates.length > 0
-          ? athlete.coordinates[athlete.coordinates.length - 1].timestamp
-          : undefined;
-
-      const trackingData = await fetchGarminTrackingData(
-        athlete.sessionId,
-        athlete.token,
-        lastTimestamp
-      );
-
-      if (trackingData && trackingData.coordinates.length > 0) {
-        // Merge new coordinates with existing ones
-        const newCoordinates = lastTimestamp
-          ? [...athlete.coordinates, ...trackingData.coordinates]
-          : trackingData.coordinates;
-
-        return {
-          ...athlete,
-          coordinates: newCoordinates,
-          profile: trackingData.profile,
-          lastUpdate: new Date().toISOString(),
-          error: undefined,
-        };
-      }
-
-      return athlete; // No new data, return unchanged
-    } catch (error) {
-      console.error(`Failed to update athlete ${athlete.profile.name}:`, error);
-      return athlete; // Return unchanged on error
-    }
-  };
+  
+  // Use a ref to always have access to the latest athletes state
+  const athletesRef = useRef<AthleteData[]>([]);
+  
+  // Keep the ref in sync with the state
+  useEffect(() => {
+    athletesRef.current = athletes;
+  }, [athletes]);
 
   const updateAllAthletes = useCallback(async () => {
-    if (athletes.length === 0) return;
+    const currentAthletes = athletesRef.current;
+    
+    if (currentAthletes.length === 0) return;
 
     try {
-      // Update all athletes simultaneously
-      const updatePromises = athletes.map((athlete) =>
-        updateAthleteData(athlete)
-      );
-      const updatedAthletes = await Promise.all(updatePromises);
-
-      // Only update state if there are actual changes
-      const hasChanges = updatedAthletes.some(
-        (updated, index) =>
-          updated.coordinates.length !== athletes[index].coordinates.length
+      // Prepare batch request - only include athletes with valid sessionId and token
+      const validAthletes = currentAthletes.filter(
+        athlete => athlete.sessionId && athlete.token && !athlete.error
       );
 
-      if (hasChanges) {
-        setAthletes(updatedAthletes);
-        console.log("Live update: Updated athlete data");
+      if (validAthletes.length === 0) {
+        return;
       }
+
+      // Create batch request - deduplicate by sessionId to avoid duplicate API calls
+      const uniqueAthletes = validAthletes.reduce((acc, athlete) => {
+        if (!acc.some(a => a.sessionId === athlete.sessionId)) {
+          acc.push(athlete);
+        }
+        return acc;
+      }, [] as AthleteData[]);
+
+      const batchRequest = uniqueAthletes.map(athlete => ({
+        sessionId: athlete.sessionId,
+        token: athlete.token,
+        begin: athlete.coordinates.length > 0
+          ? athlete.coordinates[athlete.coordinates.length - 1].timestamp
+          : undefined,
+      }));
+
+      // Fetch all athlete data in a single batch request
+      const batchResults = await fetchGarminTrackingDataBatch(batchRequest);
+
+      // Process results with proper error handling
+      const updatedAthletes = validAthletes.map(athlete => {
+        const result = batchResults.get(athlete.sessionId);
+        
+        if (!result) {
+          return athlete;
+        }
+
+        if (!result.coordinates || result.coordinates.length === 0) {
+          return athlete;
+        }
+        
+        return {
+          ...athlete,
+          coordinates: [...athlete.coordinates, ...result.coordinates],
+        };
+      });
+
+      // Update state with batched results
+      setAthletes(updatedAthletes);
     } catch (error) {
-      console.error("Failed to update athletes:", error);
+      console.error("Failed to batch update athletes:", error);
     }
-  }, [athletes]);
+  }, []); // No dependencies - use ref instead
 
   const processUrls = useCallback(async (urls: string) => {
     const urlList = urls
@@ -95,95 +102,168 @@ export const useAthleteManagement = () => {
     setIsLoading(true);
     setAthletes([]);
 
-    // Process all URLs in parallel
-    const athletePromises = urlList.map(async (url, i) => {
-      const color = ATHLETE_COLORS[i % ATHLETE_COLORS.length];
-      const athleteId = `athlete-${i}`;
+    try {
+      // Step 1: Batch expand all URLs that need expansion (gar.mn short URLs)
+      const urlsNeedingExpansion = urlList.filter(url => {
+        try {
+          const urlObj = new URL(url);
+          return urlObj.hostname === "gar.mn" || urlObj.hostname === "www.gar.mn";
+        } catch {
+          return false;
+        }
+      });
+      
+      // Expand short URLs in batch
+      const expandedUrlsMap = urlsNeedingExpansion.length > 0 
+        ? await expandGarminUrlsBatch(urlsNeedingExpansion)
+        : new Map<string, string | null>();
 
-      try {
-        // Parse the URL (handle both short and long formats) - this may call expand-url API
-        const parsed = await parseAnyGarminUrl(url);
-        if (!parsed) {
-          return {
-            id: athleteId,
+      // Step 2: Parse all URLs to get sessionId and token
+      const parsedAthletes: Array<{
+        index: number;
+        sessionId: string;
+        token: string;
+        color: string;
+        originalUrl: string;
+        error?: string;
+      }> = [];
+
+      for (let i = 0; i < urlList.length; i++) {
+        const url = urlList[i];
+        const color = ATHLETE_COLORS[i % ATHLETE_COLORS.length];
+        
+        try {
+          let urlToProcess = url;
+          
+          // Use expanded URL if it was a short URL
+          if (urlsNeedingExpansion.includes(url)) {
+            const expanded = expandedUrlsMap.get(url);
+            if (!expanded) {
+              parsedAthletes.push({
+                index: i,
+                sessionId: "",
+                token: "",
+                color,
+                originalUrl: url,
+                error: "Failed to expand short URL"
+              });
+              continue;
+            }
+            urlToProcess = expanded;
+          }
+          
+          const parsed = parseGarminUrl(urlToProcess);
+          if (!parsed) {
+            parsedAthletes.push({
+              index: i,
+              sessionId: "",
+              token: "",
+              color,
+              originalUrl: url,
+              error: "Failed to parse URL"
+            });
+            continue;
+          }
+
+          parsedAthletes.push({
+            index: i,
+            sessionId: parsed.sessionId,
+            token: parsed.token,
+            color,
+            originalUrl: url
+          });
+        } catch (error) {
+          parsedAthletes.push({
+            index: i,
             sessionId: "",
             token: "",
-            coordinates: [],
-            profile: { name: `Athlete ${i + 1}`, location: "" },
-            lastUpdate: new Date().toISOString(),
             color,
             originalUrl: url,
-            error: "Failed to parse URL",
+            error: error instanceof Error ? error.message : "Unknown error"
+          });
+        }
+      }
+
+      // Step 3: Batch fetch tracking data for all valid athletes
+      const validAthletes = parsedAthletes.filter(a => a.sessionId && a.token && !a.error);
+      const batchRequest = validAthletes.map(athlete => ({
+        sessionId: athlete.sessionId,
+        token: athlete.token
+      }));
+
+      const trackingDataMap = batchRequest.length > 0 
+        ? await fetchGarminTrackingDataBatch(batchRequest)
+        : new Map();
+
+      // Step 4: Create final athlete objects
+      const newAthletes: AthleteData[] = parsedAthletes.map(athlete => {
+        const athleteId = `athlete-${athlete.index}`;
+        
+        if (athlete.error) {
+          return {
+            id: athleteId,
+            sessionId: athlete.sessionId,
+            token: athlete.token,
+            coordinates: [],
+            profile: { name: `Athlete ${athlete.index + 1}`, location: "" },
+            lastUpdate: new Date().toISOString(),
+            color: athlete.color,
+            originalUrl: athlete.originalUrl,
+            error: athlete.error,
           } as AthleteData;
         }
 
-        // Fetch tracking data - this calls garmin-fetch API
-        const trackingData = await fetchGarminTrackingData(
-          parsed.sessionId,
-          parsed.token
-        );
-
+        const trackingData = trackingDataMap.get(athlete.sessionId);
+        
         if (trackingData) {
           return {
             ...trackingData,
             id: athleteId,
-            color,
-            originalUrl: url,
+            color: athlete.color,
+            originalUrl: athlete.originalUrl,
             isLoading: false,
           } as AthleteData;
         } else {
           return {
             id: athleteId,
-            sessionId: parsed.sessionId,
-            token: parsed.token,
+            sessionId: athlete.sessionId,
+            token: athlete.token,
             coordinates: [],
-            profile: { name: `Athlete ${i + 1}`, location: "" },
+            profile: { name: `Athlete ${athlete.index + 1}`, location: "" },
             lastUpdate: new Date().toISOString(),
-            color,
-            originalUrl: url,
+            color: athlete.color,
+            originalUrl: athlete.originalUrl,
             error: "Failed to fetch tracking data",
             isLoading: false,
           } as AthleteData;
         }
-      } catch (error) {
-        return {
-          id: athleteId,
-          sessionId: "",
-          token: "",
-          coordinates: [],
-          profile: { name: `Athlete ${i + 1}`, location: "" },
-          lastUpdate: new Date().toISOString(),
-          color,
-          originalUrl: url,
-          error: error instanceof Error ? error.message : "Unknown error",
-        } as AthleteData;
+      });
+
+      setAthletes(newAthletes);
+
+      // Calculate map center from all athletes
+      const validAthletesWithCoords = newAthletes.filter(
+        (athlete) => athlete.coordinates && athlete.coordinates.length > 0
+      );
+
+      if (validAthletesWithCoords.length > 0) {
+        // Calculate bounds
+        const allCoords = validAthletesWithCoords.flatMap((athlete) => athlete.coordinates);
+        const lats = allCoords.map((coord) => coord.position.lat);
+        const lngs = allCoords.map((coord) => coord.position.lon);
+
+        const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+        const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+
+        setMapCenter([centerLat, centerLng]);
       }
-    });
 
-    // Wait for all athletes to be processed in parallel
-    const newAthletes = await Promise.all(athletePromises);
-
-    setAthletes(newAthletes);
-    setIsLoading(false);
-
-    // Calculate map center from all athletes
-    const validAthletes = newAthletes.filter(
-      (athlete) => athlete.coordinates && athlete.coordinates.length > 0
-    );
-
-    if (validAthletes.length > 0) {
-      // Calculate bounds
-      const allCoords = validAthletes.flatMap((athlete) => athlete.coordinates);
-      const lats = allCoords.map((coord) => coord.position.lat);
-      const lngs = allCoords.map((coord) => coord.position.lon);
-
-      const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-      const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-
-      setMapCenter([centerLat, centerLng]);
+    } catch (error) {
+      console.error("Failed to process URLs:", error);
+      alert("Failed to process URLs. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-
-    return newAthletes;
   }, []);
 
   return {

@@ -1,9 +1,8 @@
 import {
-  createSharedGridRepository,
   createServerSharedGridRepository,
 } from "../database";
 import { generateShareId, generateStateHash } from "../shareUtils";
-import type { SharedGridState } from "../supabase";
+import type { SharedGridState } from "../supabaseServer";
 
 export interface ShareResult {
   success: boolean;
@@ -27,10 +26,8 @@ export type ShareableState = GridState | MultiTrackState;
 
 export class ShareService {
   constructor(
-    private repository = createSharedGridRepository(),
-    private baseUrl = typeof window !== "undefined"
-      ? window.location.origin
-      : ""
+    private repository = createServerSharedGridRepository(),
+    private baseUrl = ""
   ) {}
 
   /**
@@ -249,6 +246,5 @@ export class ShareService {
 }
 
 // Factory functions
-export const createShareService = () => new ShareService();
 export const createServerShareService = (baseUrl?: string) =>
   new ShareService(createServerSharedGridRepository(), baseUrl);

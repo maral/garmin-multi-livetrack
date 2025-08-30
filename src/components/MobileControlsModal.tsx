@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "./ui/dialog";
 import { Settings } from "lucide-react";
@@ -44,6 +45,9 @@ export default function MobileControlsModal({
       <DialogContent className="sm:max-w-lg w-[95vw] max-w-[400px]">
         <DialogHeader>
           <DialogTitle>Grid Controls</DialogTitle>
+          <DialogDescription>
+            Adjust grid layout and manage your tracking URLs.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           {/* Grid Size Controls */}

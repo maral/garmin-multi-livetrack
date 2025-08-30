@@ -1,9 +1,8 @@
-import { supabase } from "../../supabase";
 import { supabaseServer } from "../../supabaseServer";
-import type { SharedGridState } from "../../supabase";
+import type { SharedGridState } from "../../supabaseServer";
 
 export class SharedGridRepository {
-  constructor(private client = supabase) {}
+  constructor(private client = supabaseServer) {}
 
   /**
    * Find an existing share by state hash
@@ -150,7 +149,5 @@ export class SharedGridRepository {
 }
 
 // Factory functions for different environments
-export const createSharedGridRepository = () =>
-  new SharedGridRepository(supabase);
 export const createServerSharedGridRepository = () =>
   new SharedGridRepository(supabaseServer);

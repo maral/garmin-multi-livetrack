@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createShareService } from "@/lib/services/shareService";
+import { createServerShareService } from "@/lib/services/shareService";
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +15,7 @@ export async function GET(
       );
     }
 
-    const shareService = createShareService();
+    const shareService = createServerShareService();
     const result = await shareService.getSharedMultiTrack(shareId);
 
     if (!result) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import {
   Clock,
   Zap,
@@ -61,6 +61,9 @@ export default function AthleteStatsModal({
               />
               {athlete.profile.name} - Detailed Statistics
             </DialogTitle>
+            <DialogDescription>
+              Comprehensive tracking data and performance metrics for this athlete&apos;s current session.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">

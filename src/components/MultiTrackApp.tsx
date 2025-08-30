@@ -39,6 +39,7 @@ export default function MultiTrackApp({
     startEditing,
     cancelEditing,
     resetForm,
+    completeEditing,
     saveOriginalUrls,
   } = useEditingState(initialUrls);
 
@@ -62,6 +63,10 @@ export default function MultiTrackApp({
     await processUrls(urls);
     saveOriginalUrls(urls);
     setIsLive(true);
+    // Exit editing mode after successfully processing URLs
+    if (isEditing) {
+      completeEditing();
+    }
   };
 
   // Enhanced editing handlers

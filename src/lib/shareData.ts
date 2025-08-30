@@ -1,5 +1,5 @@
 import { createServerShareService } from "./services";
-import type { SharedGridState } from "./supabase";
+import type { SharedGridState } from "./supabaseServer";
 
 export async function getSharedGridData(
   shareId: string
