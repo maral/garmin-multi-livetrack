@@ -10,14 +10,18 @@ interface GridCellControlsProps {
   isFullscreen?: boolean;
 }
 
-export default function GridCellControls({ 
-  onEdit, 
-  onFullscreen, 
+export default function GridCellControls({
+  onEdit,
+  onFullscreen,
   showMinimize = false,
-  isFullscreen = false 
+  isFullscreen = false,
 }: GridCellControlsProps) {
   return (
-    <div className={`absolute top-2 right-2 flex gap-1 ${isFullscreen ? 'hidden' : ''}`}>
+    <div
+      className={`absolute top-2 right-2 flex gap-1 ${
+        isFullscreen ? "hidden" : ""
+      }`}
+    >
       <Button
         size="sm"
         variant="outline"

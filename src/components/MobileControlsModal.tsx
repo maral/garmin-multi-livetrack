@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./ui/dialog";
 import { Settings } from "lucide-react";
 import ShareButton from "./ShareButton";
 import BulkUrlImport from "./BulkUrlImport";
@@ -18,12 +24,12 @@ interface MobileControlsModalProps {
   onBulkImport: (urls: string[]) => void;
 }
 
-export default function MobileControlsModal({ 
-  rows, 
-  cols, 
-  cellData, 
-  onRowsChange, 
-  onColsChange, 
+export default function MobileControlsModal({
+  rows,
+  cols,
+  cellData,
+  onRowsChange,
+  onColsChange,
   onBulkImport,
 }: MobileControlsModalProps) {
   const [isOpen, setIsOpen] = useState(false);

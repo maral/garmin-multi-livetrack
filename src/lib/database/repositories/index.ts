@@ -1,1 +1,5 @@
-export { SharedGridRepository, createSharedGridRepository, createServerSharedGridRepository } from './sharedGridRepository'
+export {
+  SharedGridRepository,
+  createSharedGridRepository,
+  createServerSharedGridRepository,
+} from "./sharedGridRepository";

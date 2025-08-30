@@ -1,2 +1,5 @@
-export { useShareDialog } from './useShareDialog'
-export type { UseShareDialogOptions, UseShareDialogReturn } from './useShareDialog'
+export { useShareDialog } from "./useShareDialog";
+export type {
+  UseShareDialogOptions,
+  UseShareDialogReturn,
+} from "./useShareDialog";

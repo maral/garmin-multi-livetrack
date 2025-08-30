@@ -11,7 +11,11 @@ interface GridCellInputProps {
   onCancel: () => void;
 }
 
-export default function GridCellInput({ initialValue, onConfirm, onCancel }: GridCellInputProps) {
+export default function GridCellInput({
+  initialValue,
+  onConfirm,
+  onCancel,
+}: GridCellInputProps) {
   const [inputValue, setInputValue] = useState(initialValue);
 
   const handleConfirm = () => {
@@ -53,7 +57,11 @@ export default function GridCellInput({ initialValue, onConfirm, onCancel }: Gri
           autoFocus
         />
         <div className="flex gap-2 justify-center">
-          <Button size="sm" onClick={handleConfirm} disabled={!inputValue.trim()}>
+          <Button
+            size="sm"
+            onClick={handleConfirm}
+            disabled={!inputValue.trim()}
+          >
             <Check className="h-3 w-3 mr-1" />
             Confirm
           </Button>

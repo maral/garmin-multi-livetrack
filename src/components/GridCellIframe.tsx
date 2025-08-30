@@ -15,14 +15,14 @@ interface GridCellIframeProps {
   setIsFullscreen: (value: boolean) => void;
 }
 
-export default function GridCellIframe({ 
-  url, 
-  rowIndex, 
-  colIndex, 
+export default function GridCellIframe({
+  url,
+  rowIndex,
+  colIndex,
   isFullscreen,
-  onEdit, 
+  onEdit,
   onError,
-  setIsFullscreen
+  setIsFullscreen,
 }: GridCellIframeProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
@@ -33,9 +33,9 @@ export default function GridCellIframe({
       setIsFullscreen(!!document.fullscreenElement);
     };
 
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, [setIsFullscreen]);
 
@@ -99,8 +99,8 @@ export default function GridCellIframe({
             <Minimize className="h-6 w-6" />
           </Button>
         )}
-        
-        <GridCellControls 
+
+        <GridCellControls
           onEdit={onEdit}
           onFullscreen={handleFullscreenClick}
           isFullscreen={isFullscreen}

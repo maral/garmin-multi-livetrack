@@ -10,7 +10,11 @@ interface GridCellErrorProps {
   onFullscreen: () => void;
 }
 
-export default function GridCellError({ url, onEdit, onFullscreen }: GridCellErrorProps) {
+export default function GridCellError({
+  url,
+  onEdit,
+  onFullscreen,
+}: GridCellErrorProps) {
   return (
     <div className="border border-gray-300 bg-red-50 flex flex-col items-center justify-center h-full w-full p-4 relative">
       <div className="text-center space-y-4">
@@ -31,7 +35,7 @@ export default function GridCellError({ url, onEdit, onFullscreen }: GridCellErr
         </div>
         <div className="text-xs text-gray-400 break-all">{url}</div>
       </div>
-      <GridCellControls 
+      <GridCellControls
         onEdit={onEdit}
         onFullscreen={onFullscreen}
         showMinimize={false}

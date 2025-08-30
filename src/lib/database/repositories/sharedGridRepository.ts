@@ -1,6 +1,6 @@
-import { supabase } from '../../supabase'
-import { supabaseServer } from '../../supabaseServer'
-import type { SharedGridState } from '../../supabase'
+import { supabase } from "../../supabase";
+import { supabaseServer } from "../../supabaseServer";
+import type { SharedGridState } from "../../supabase";
 
 export class SharedGridRepository {
   constructor(private client = supabase) {}
@@ -10,18 +10,44 @@ export class SharedGridRepository {
    */
   async findByStateHash(stateHash: string): Promise<SharedGridState | null> {
     const { data, error } = await this.client
-      .from('shared_grids')
-      .select('*')
-      .eq('state_hash', stateHash)
-      .order('created_at', { ascending: false })
+      .from("shared_grids")
+      .select("*")
+      .eq("state_hash", stateHash)
+      .eq("type", "grid") // Default to grid type for backward compatibility
+      .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle()
+      .maybeSingle();
 
     if (error) {
-      throw new Error(`Failed to find share by state hash: ${error.message}`)
+      throw new Error(`Failed to find share by state hash: ${error.message}`);
     }
 
-    return data
+    return data;
+  }
+
+  /**
+   * Find an existing share by state hash and type
+   */
+  async findByStateHashAndType(
+    stateHash: string,
+    type: string
+  ): Promise<SharedGridState | null> {
+    const { data, error } = await this.client
+      .from("shared_grids")
+      .select("*")
+      .eq("state_hash", stateHash)
+      .eq("type", type)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(
+        `Failed to find share by state hash and type: ${error.message}`
+      );
+    }
+
+    return data;
   }
 
   /**
@@ -29,20 +55,45 @@ export class SharedGridRepository {
    */
   async findByShareId(shareId: string): Promise<SharedGridState | null> {
     const { data, error } = await this.client
-      .from('shared_grids')
-      .select('*')
-      .eq('share_id', shareId)
-      .single()
+      .from("shared_grids")
+      .select("*")
+      .eq("share_id", shareId)
+      .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
+      if (error.code === "PGRST116") {
         // Not found
-        return null
+        return null;
       }
-      throw new Error(`Failed to find share by ID: ${error.message}`)
+      throw new Error(`Failed to find share by ID: ${error.message}`);
     }
 
-    return data
+    return data;
+  }
+
+  /**
+   * Find a share by share ID and type
+   */
+  async findByShareIdAndType(
+    shareId: string,
+    type: string
+  ): Promise<SharedGridState | null> {
+    const { data, error } = await this.client
+      .from("shared_grids")
+      .select("*")
+      .eq("share_id", shareId)
+      .eq("type", type)
+      .single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        // Not found
+        return null;
+      }
+      throw new Error(`Failed to find share by ID and type: ${error.message}`);
+    }
+
+    return data;
   }
 
   /**
@@ -50,34 +101,36 @@ export class SharedGridRepository {
    */
   async shareIdExists(shareId: string): Promise<boolean> {
     const { data, error } = await this.client
-      .from('shared_grids')
-      .select('share_id')
-      .eq('share_id', shareId)
+      .from("shared_grids")
+      .select("share_id")
+      .eq("share_id", shareId)
       .limit(1)
-      .maybeSingle()
+      .maybeSingle();
 
     if (error) {
-      throw new Error(`Failed to check share ID existence: ${error.message}`)
+      throw new Error(`Failed to check share ID existence: ${error.message}`);
     }
 
-    return !!data
+    return !!data;
   }
 
   /**
    * Create a new share
    */
-  async create(shareData: Omit<SharedGridState, 'id' | 'created_at'>): Promise<SharedGridState> {
+  async create(
+    shareData: Omit<SharedGridState, "id" | "created_at">
+  ): Promise<SharedGridState> {
     const { data, error } = await this.client
-      .from('shared_grids')
+      .from("shared_grids")
       .insert([shareData])
       .select()
-      .single()
+      .single();
 
     if (error) {
-      throw new Error(`Failed to create share: ${error.message}`)
+      throw new Error(`Failed to create share: ${error.message}`);
     }
 
-    return data
+    return data;
   }
 
   /**
@@ -85,17 +138,19 @@ export class SharedGridRepository {
    */
   async getTotalCount(): Promise<number> {
     const { count, error } = await this.client
-      .from('shared_grids')
-      .select('*', { count: 'exact', head: true })
+      .from("shared_grids")
+      .select("*", { count: "exact", head: true });
 
     if (error) {
-      throw new Error(`Failed to get share count: ${error.message}`)
+      throw new Error(`Failed to get share count: ${error.message}`);
     }
 
-    return count || 0
+    return count || 0;
   }
 }
 
 // Factory functions for different environments
-export const createSharedGridRepository = () => new SharedGridRepository(supabase)
-export const createServerSharedGridRepository = () => new SharedGridRepository(supabaseServer)
+export const createSharedGridRepository = () =>
+  new SharedGridRepository(supabase);
+export const createServerSharedGridRepository = () =>
+  new SharedGridRepository(supabaseServer);

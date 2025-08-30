@@ -22,13 +22,15 @@ export default function TopBar({
 }: TopBarProps) {
   return (
     <div className="h-14 px-4 sm:px-6 py-2 flex items-center justify-between border-b">
-      <h1 className="text-lg sm:text-xl font-bold truncate">Garmin Multi LiveTrack</h1>
-      
+      <h1 className="text-lg sm:text-xl font-bold truncate">
+        Garmin Multi LiveTrack
+      </h1>
+
       {/* Mobile + Small Screen Controls - Always show Share + Import, Menu visible sm-lg */}
       <div className="flex items-center gap-2">
         <ShareButton rows={rows} cols={cols} cellData={cellData} />
         <BulkUrlImport onImportUrls={onBulkImport} />
-        
+
         {/* Grid Controls - Only on lg+ */}
         <div className="hidden lg:flex">
           <GridControls
@@ -38,7 +40,7 @@ export default function TopBar({
             onColsChange={onColsChange}
           />
         </div>
-        
+
         {/* Mobile Controls Modal - Hidden on lg+ */}
         <div className="lg:hidden">
           <MobileControlsModal

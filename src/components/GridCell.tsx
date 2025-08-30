@@ -57,11 +57,7 @@ export default function GridCell({
   // URL set but has frame error
   if (url && hasFrameError) {
     return (
-      <GridCellError
-        url={url}
-        onEdit={handleEdit}
-        onFullscreen={() => {}}
-      />
+      <GridCellError url={url} onEdit={handleEdit} onFullscreen={() => {}} />
     );
   }
 

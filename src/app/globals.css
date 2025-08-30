@@ -120,3 +120,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Ensure dialogs appear above Leaflet maps */
+[data-slot="dialog-overlay"] {
+  z-index: 9999 !important;
+}
+
+[data-slot="dialog-content"] {
+  z-index: 10000 !important;
+}

@@ -17,9 +17,7 @@ interface DynamicGridProps {
   };
 }
 
-export default function DynamicGrid({ 
-  initialState,
-}: DynamicGridProps) {
+export default function DynamicGrid({ initialState }: DynamicGridProps) {
   // Initialize state with provided initial state or defaults
   const [rows, setRows] = useState(initialState?.rows || 1);
   const [cols, setCols] = useState(initialState?.cols || 1);
