@@ -10,23 +10,22 @@ interface PageProps {
 
 async function getSharedMultiTrack(shareId: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const response = await fetch(
-      `${baseUrl}/api/multi-track/share/${shareId}`,
-      {
-        cache: "no-store",
-      }
-    );
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error(`Failed to fetch shared multi-track: ${response.status}`);
+    // Import and use the database repository directly instead of making HTTP calls
+    const { createServerSharedGridRepository } = await import("@/lib/database/repositories/sharedGridRepository");
+    
+    const repository = createServerSharedGridRepository();
+    const sharedGrid = await repository.findByShareId(shareId);
+    if (!sharedGrid) {
+      return null;
     }
 
-    const result = await response.json();
-    return result.success ? result.data : null;
+    // Return the data in the same format as the API
+    return {
+      id: sharedGrid.id,
+      shareId: sharedGrid.share_id,
+      urls: Object.values(sharedGrid.cell_data).map(cell => cell.url).filter(Boolean),
+      createdAt: sharedGrid.created_at,
+    };
   } catch (error) {
     console.error("Error fetching shared multi-track:", error);
     return null;
