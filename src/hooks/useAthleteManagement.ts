@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   parseGarminUrl,
   fetchGarminTrackingDataBatch,
+  fetchGarminTrackingUpdatesBatch,
   expandGarminUrlsBatch,
   isValidGarminUrl,
 } from "@/lib/garmin-api";
@@ -28,8 +29,9 @@ export const useAthleteManagement = () => {
 
     try {
       // Prepare batch request - only include athletes with valid sessionId and token
+      // For updates, we only want athletes that already have coordinates (initial load complete)
       const validAthletes = currentAthletes.filter(
-        athlete => athlete.sessionId && athlete.token && !athlete.error
+        athlete => athlete.sessionId && athlete.token && !athlete.error && athlete.coordinates.length > 0
       );
 
       if (validAthletes.length === 0) {
@@ -44,32 +46,33 @@ export const useAthleteManagement = () => {
         return acc;
       }, [] as AthleteData[]);
 
-      const batchRequest = uniqueAthletes.map(athlete => ({
-        sessionId: athlete.sessionId,
-        token: athlete.token,
-        begin: athlete.coordinates.length > 0
-          ? athlete.coordinates[athlete.coordinates.length - 1].timestamp
-          : undefined,
-      }));
+      const batchRequest = uniqueAthletes.map(athlete => {
+        const lastTimestamp = athlete.coordinates[athlete.coordinates.length - 1].timestamp;
+        // Add one second to exclude the last coordinate we already have
+        const lastTime = new Date(lastTimestamp);
+        lastTime.setSeconds(lastTime.getSeconds() + 1);
+        
+        return {
+          sessionId: athlete.sessionId,
+          token: athlete.token,
+          begin: lastTime.toISOString(), // Required for lean updates
+        };
+      });
 
-      // Fetch all athlete data in a single batch request
-      const batchResults = await fetchGarminTrackingDataBatch(batchRequest);
+      // Fetch only new coordinates in a lean batch request
+      const batchResults = await fetchGarminTrackingUpdatesBatch(batchRequest);
 
       // Process results with proper error handling
       const updatedAthletes = validAthletes.map(athlete => {
-        const result = batchResults.get(athlete.sessionId);
+        const newCoordinates = batchResults.get(athlete.sessionId);
         
-        if (!result) {
-          return athlete;
-        }
-
-        if (!result.coordinates || result.coordinates.length === 0) {
+        if (!newCoordinates || newCoordinates.length === 0) {
           return athlete;
         }
         
         return {
           ...athlete,
-          coordinates: [...athlete.coordinates, ...result.coordinates],
+          coordinates: [...athlete.coordinates, ...newCoordinates],
         };
       });
 

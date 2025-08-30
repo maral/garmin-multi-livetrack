@@ -194,3 +194,55 @@ export async function fetchGarminTrackingDataBatch(
         return result;
     }
 }
+
+/**
+ * Batch fetch only new tracking coordinates for multiple athletes (lean updates)
+ */
+export async function fetchGarminTrackingUpdatesBatch(
+    athletes: Array<{ sessionId: string; token: string; begin: string }>,
+): Promise<Map<string, GarminCoordinate[]>> {
+    try {
+        const response = await fetch("/api/garmin-fetch-updates-batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ athletes }),
+        });
+
+        if (!response.ok) {
+            // Return map with all empty arrays
+            const result = new Map<string, GarminCoordinate[]>();
+            athletes.forEach((athlete) => result.set(athlete.sessionId, []));
+            return result;
+        }
+
+        const data = await response.json();
+        const result = new Map<string, GarminCoordinate[]>();
+
+        if (data.success && data.results) {
+            data.results.forEach(
+                (
+                    athleteResult: {
+                        sessionId: string;
+                        success: boolean;
+                        coordinates?: GarminCoordinate[];
+                        error?: string;
+                    },
+                ) => {
+                    result.set(
+                        athleteResult.sessionId,
+                        athleteResult.success
+                            ? athleteResult.coordinates || []
+                            : [],
+                    );
+                },
+            );
+        }
+
+        return result;
+    } catch {
+        // Return map with all empty arrays on error
+        const result = new Map<string, GarminCoordinate[]>();
+        athletes.forEach((athlete) => result.set(athlete.sessionId, []));
+        return result;
+    }
+}
