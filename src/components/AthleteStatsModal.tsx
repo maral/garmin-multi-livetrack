@@ -74,7 +74,7 @@ export default function AthleteStatsModal({
                 )}
 
                 {/* Main Stats Grid */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <div className="flex items-center gap-2 text-blue-600 mb-2">
                       <Activity className="h-4 w-4" />
@@ -121,7 +121,7 @@ export default function AthleteStatsModal({
                 {/* Elevation */}
                 <div className="space-y-3">
                   <h3 className="font-semibold">Elevation</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-green-600" />
                       <span className="text-gray-600">Gain:</span>
@@ -155,7 +155,7 @@ export default function AthleteStatsModal({
                 {stats.avgHeartRate > 0 && (
                   <div className="space-y-3">
                     <h3 className="font-semibold">Heart Rate</h3>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       <div className="flex items-center gap-2">
                         <Heart className="h-4 w-4 text-red-500" />
                         <span className="text-gray-600">Average:</span>
@@ -177,7 +177,7 @@ export default function AthleteStatsModal({
                 {/* Activity Details */}
                 <div className="space-y-3">
                   <h3 className="font-semibold">Activity Details</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-600">Type:</span>
                       <span className="font-medium">{stats.activityType}</span>

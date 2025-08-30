@@ -37,7 +37,7 @@ export default function AthletesSummary({
   });
 
   return (
-    <div className="px-4 sm:px-6 py-3 border-b bg-gray-50">
+    <div className="p-2 sm:p-3 bg-gray-50">
       {sortedAthletes.length === 0 ? (
         <div className="text-center text-gray-500 text-sm">
           {isLoading

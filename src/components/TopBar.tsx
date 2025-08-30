@@ -23,7 +23,11 @@ export default function TopBar({
   return (
     <div className="h-14 px-4 sm:px-6 py-2 flex items-center justify-between border-b">
       <h1 className="text-lg sm:text-xl font-bold truncate">
-        Garmin Multi LiveTrack
+        <span className="hidden sm:inline">Garmin Multi LiveTrack</span>
+        <span className="sm:hidden flex flex-col leading-tight text-sm">
+          <span>Multi</span>
+          <span>LiveTrack</span>
+        </span>
       </h1>
 
       {/* Mobile + Small Screen Controls - Always show Share + Import, Menu visible sm-lg */}

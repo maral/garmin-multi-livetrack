@@ -455,25 +455,29 @@ export default function MultiTrackApp({
         <div className="h-14 px-4 sm:px-6 py-2 flex items-center justify-between border-b">
           <div className="flex items-center gap-3">
             <h1 className="text-lg sm:text-xl font-bold truncate">
-              Garmin Multi LiveTrack
+              <span className="hidden sm:inline">Garmin Multi LiveTrack</span>
+              <span className="sm:hidden flex flex-col leading-tight text-sm">
+                <span>Garmin Multi</span>
+                <span>LiveTrack</span>
+              </span>
             </h1>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Live tracking status indicator */}
+            {/* Live tracking status indicator - text hidden on mobile */}
             {athletes.length > 0 && (
               <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-gray-50">
                 {isLive ? (
                   <>
                     <Radio className="h-4 w-4 text-red-500 animate-pulse" />
-                    <span className="text-sm font-medium text-red-600">
+                    <span className="hidden sm:inline text-sm font-medium text-red-600">
                       LIVE
                     </span>
                   </>
                 ) : (
                   <>
                     <div className="h-4 w-4 rounded-full bg-gray-400"></div>
-                    <span className="text-sm font-medium text-gray-600">
+                    <span className="hidden sm:inline text-sm font-medium text-gray-600">
                       PAUSED
                     </span>
                   </>
