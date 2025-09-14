@@ -2,7 +2,28 @@
 // UNIFIED TRACKING TYPES
 // =============================================================================
 
-export type TrackingProvider = "garmin" | "strava";
+/**
+ * Supported tracking provider types
+ */
+export type TrackingType = TrackingIdentifier["type"];
+
+/**
+ * Type-safe tracking identifier that abstracts provider-specific data
+ */
+export type TrackingIdentifier =
+    | {
+        type: "strava";
+        data: {
+            beaconId: string;
+        };
+    }
+    | {
+        type: "garmin";
+        data: {
+            sessionId: string;
+            token: string;
+        };
+    };
 
 /**
  * Unified error codes
@@ -20,29 +41,17 @@ export type UnifiedErrorCode =
 export interface UnifiedError {
     code: UnifiedErrorCode;
     message: string;
-    provider?: TrackingProvider;
+    provider?: TrackingType;
     details?: unknown;
 }
 
 /**
- * Provider-specific data after URL parsing
+ * URL parsing result
  */
-export interface ProviderSpecificData {
-    // Garmin
-    sessionId?: string;
-    token?: string;
-    // Strava
-    beaconId?: string;
-}
-
-/**
- * Provider-specific data after URL parsing
- */
-export interface ParsedProviderData {
+export interface ParsedUrl {
     originalUrl: string;
-    provider: TrackingProvider | null; // null if invalid/unsupported
+    identifier: TrackingIdentifier | null;
     success: boolean;
-    data?: ProviderSpecificData;
     error?: UnifiedError;
 }
 
@@ -73,7 +82,7 @@ export interface UnifiedStats {
 export interface UnifiedTrackingData {
     // Essential identification
     id: string; // URL or unique identifier
-    provider: TrackingProvider;
+    identifier: TrackingIdentifier;
 
     // Athlete info
     athleteName: string;
@@ -91,24 +100,11 @@ export interface UnifiedTrackingData {
 }
 
 /**
- * Standard response format for all unified APIs
- */
-export interface UnifiedResponse<T> {
-    success: boolean;
-    results: Array<{
-        id: string;
-        success: boolean;
-        data?: T;
-        error?: UnifiedError;
-    }>;
-}
-
-/**
  * API response wrapper for tracking operations
  */
 export interface TrackingApiResponse {
     originalUrl: string;
-    provider: TrackingProvider | null;
+    identifier: TrackingIdentifier | null;
     success: boolean;
     data?: UnifiedTrackingData;
     error?: UnifiedError;
@@ -119,24 +115,83 @@ export interface TrackingApiResponse {
  */
 export interface TrackingUpdatesResponse {
     originalUrl: string;
-    provider: TrackingProvider | null;
+    identifier: TrackingIdentifier | null;
     success: boolean;
     coordinates: UnifiedCoordinate[];
     error?: UnifiedError;
 }
 
+// =============================================================================
+// PROVIDER INTERFACE
+// =============================================================================
+
 /**
- * Provider data for tracking requests
+ * Provider interface that each tracking provider must implement
  */
-export interface ProviderRequest {
-    id: string; // unique identifier for this request
-    provider: TrackingProvider;
-    data: {
-        // Garmin
-        sessionId?: string;
-        token?: string;
-        // Strava
-        beaconId?: string;
-    };
-    begin?: string; // for updates only
+export interface TrackingProvider {
+    // Parse URL and extract provider-specific data
+    parseUrl(url: string): TrackingIdentifier["data"] | null;
+
+    // Validate if URL is supported by this provider
+    isValidUrl(url: string): boolean;
+
+    // Fetch complete tracking data for multiple identifiers
+    fetchTrackingData(
+        identifiers: TrackingIdentifier["data"][],
+        begin?: string,
+    ): Promise<UnifiedTrackingData[]>;
+
+    // Fetch only new coordinates since timestamp for multiple identifiers
+    fetchTrackingUpdates(
+        identifiers: TrackingIdentifier["data"][],
+        begin: string,
+    ): Promise<{ id: string; coordinates: UnifiedCoordinate[] }[]>;
+}
+
+// =============================================================================
+// API REQUEST/RESPONSE TYPES
+// =============================================================================
+
+/**
+ * Request to expand URLs into tracking identifiers
+ */
+export interface ExpandUrlsRequest {
+    urls: string[];
+}
+
+/**
+ * Response from URL expansion
+ */
+export interface ExpandUrlsResponse {
+    results: ParsedUrl[];
+}
+
+/**
+ * Request to fetch tracking data
+ */
+export interface FetchDataRequest {
+    identifiers: TrackingIdentifier[];
+    begin?: string;
+}
+
+/**
+ * Response from tracking data fetch
+ */
+export interface FetchDataResponse {
+    results: UnifiedTrackingData[];
+}
+
+/**
+ * Request to fetch tracking updates
+ */
+export interface FetchUpdatesRequest {
+    identifiers: TrackingIdentifier[];
+    begin: string;
+}
+
+/**
+ * Response from tracking updates fetch
+ */
+export interface FetchUpdatesResponse {
+    results: { id: string; coordinates: UnifiedCoordinate[] }[];
 }

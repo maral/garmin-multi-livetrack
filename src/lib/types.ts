@@ -1,8 +1,8 @@
 // Shared type definitions for the multi-track application
 import type { GarminCoordinate, GarminCoursePoint } from "@/lib/garmin-api";
 import type {
-  ParsedProviderData,
-  TrackingProvider,
+  TrackingIdentifier,
+  TrackingType,
 } from "@/lib/tracking/types";
 
 export interface AthleteStats {
@@ -21,7 +21,7 @@ export interface AthleteStats {
 
 export interface AthleteData {
   id: string;
-  provider: TrackingProvider;
+  provider: TrackingType;
   profile: { name: string; location: string };
   coordinates: GarminCoordinate[]; // Still using Garmin format for backward compatibility
   coursePoints?: GarminCoursePoint[];
@@ -30,8 +30,8 @@ export interface AthleteData {
   originalUrl: string;
   error?: string;
   isLoading?: boolean;
-  // Store parsed URL data for updates
-  parsedData?: ParsedProviderData;
+  // Store tracking identifier for updates
+  identifier?: TrackingIdentifier;
 }
 
 // Component props interfaces

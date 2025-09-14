@@ -2,7 +2,6 @@ import { useState, useCallback } from "react";
 import { AthleteData } from "@/lib/types";
 import { processTrackingUrls, fetchTrackingUpdates } from "@/lib/unifiedClient";
 import { convertUnifiedToAthleteData } from "@/lib/athleteConverters";
-import { ParsedProviderData } from "@/lib/tracking/types";
 
 interface UseAthleteManagementReturn {
   athletes: AthleteData[];
@@ -22,20 +21,28 @@ export function useAthleteManagement(): UseAthleteManagementReturn {
 
     try {
       const validAthletes = athletes.filter(
-        athlete => athlete.parsedData && !athlete.error
+        athlete => athlete.identifier && !athlete.error
       );
 
       if (validAthletes.length === 0) return;
 
-      // Create parsed data array for the update function
-      const parsedDataArray = validAthletes.map(athlete => athlete.parsedData!);
-      const updates = await fetchTrackingUpdates(parsedDataArray);
+      // Create identifier array for the update function
+      const identifierArray = validAthletes.map(athlete => athlete.identifier!);
+      const updates = await fetchTrackingUpdates(identifierArray);
       
       const updatedAthletes = athletes.map(athlete => {
-        if (!athlete.parsedData || athlete.error) return athlete;
+        if (!athlete.identifier || athlete.error) return athlete;
         
         const update = updates.find(u => 
-          u.originalUrl === athlete.originalUrl
+          u.identifier && 
+          athlete.identifier &&
+          u.identifier.type === athlete.identifier.type &&
+          ((u.identifier.type === 'garmin' && 
+            athlete.identifier.type === 'garmin' &&
+            u.identifier.data.sessionId === athlete.identifier.data.sessionId) ||
+           (u.identifier.type === 'strava' && 
+            athlete.identifier.type === 'strava' &&
+            u.identifier.data.beaconId === athlete.identifier.data.beaconId))
         );
         
         if (update && update.success && update.coordinates) {
@@ -49,7 +56,6 @@ export function useAthleteManagement(): UseAthleteManagementReturn {
             fitnessData: undefined,
           }));
 
-          // Update athlete with new coordinates
           return {
             ...athlete,
             coordinates: garminCoordinates,
@@ -62,7 +68,7 @@ export function useAthleteManagement(): UseAthleteManagementReturn {
 
       setAthletes(updatedAthletes);
     } catch (error) {
-      console.error("Failed to update athletes:", error);
+      console.error('Error updating athletes:', error);
     }
   }, [athletes]);
 
@@ -74,74 +80,53 @@ export function useAthleteManagement(): UseAthleteManagementReturn {
     try {
       const results = await processTrackingUrls(urls);
       
-      const newAthletes = results.map((result, index) => {
-        const color = `hsl(${(index * 360) / results.length}, 70%, 50%)`;
-        
-        if (!result.success || result.error) {
-          return {
-            id: `athlete-${index}`,
-            provider: result.provider || 'garmin',
-            sessionId: '',
-            token: '',
+      const newAthletes: AthleteData[] = [];
+      let firstValidCoordinate: [number, number] | undefined;
+
+      for (const result of results) {
+        if (result.success && result.data) {
+          // Convert to athlete data format
+          const athleteData = convertUnifiedToAthleteData(
+            result.data,
+            `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`,
+            result.identifier || undefined
+          );
+
+          newAthletes.push(athleteData);
+
+          // Set map center to the first athlete with coordinates
+          if (!firstValidCoordinate && result.data.coordinates.length > 0) {
+            const firstCoord = result.data.coordinates[0];
+            firstValidCoordinate = [firstCoord.lat, firstCoord.lon];
+          }
+        } else {
+          // Create an error athlete entry
+          newAthletes.push({
+            id: result.originalUrl,
+            provider: result.identifier?.type || 'garmin',
+            profile: { name: 'Failed to load', location: '' },
             coordinates: [],
-            profile: { name: `Error: ${urls[index]}`, location: "" },
+            coursePoints: [],
             lastUpdate: new Date().toISOString(),
-            color,
-            originalUrl: urls[index],
-            error: result.error?.message || "Failed to process URL",
-            parsedData: undefined,
-          } as AthleteData;
+            color: '#ff0000',
+            originalUrl: result.originalUrl,
+            error: result.error?.message || 'Unknown error',
+            identifier: result.identifier || undefined,
+          });
         }
-
-        if (result.data) {
-          // Create a parsed data object from the result
-          const parsedData: ParsedProviderData = {
-            originalUrl: urls[index],
-            provider: result.provider!,
-            success: true,
-            data: {
-              sessionId: result.provider === 'garmin' ? result.data.id : undefined,
-              token: result.provider === 'garmin' ? result.data.id : undefined,
-              beaconId: result.provider === 'strava' ? result.data.id : undefined,
-            }
-          };
-          
-          return convertUnifiedToAthleteData(result.data, color, parsedData);
-        }
-
-        // Fallback for unexpected result structure
-        return {
-          id: `athlete-${index}`,
-          provider: result.provider || 'garmin',
-          sessionId: '',
-          token: '',
-          coordinates: [],
-          profile: { name: `Athlete ${index + 1}`, location: "" },
-          lastUpdate: new Date().toISOString(),
-          color,
-          originalUrl: urls[index],
-          error: "Unexpected result structure",
-          parsedData: undefined,
-        } as AthleteData;
-      });
-
-      // Set map center to first athlete with coordinates
-      const athleteWithCoords = newAthletes.find(
-        (athlete) => athlete.coordinates.length > 0
-      );
-      if (athleteWithCoords && athleteWithCoords.coordinates.length > 0) {
-        const firstCoord = athleteWithCoords.coordinates[0];
-        setMapCenter([firstCoord.position.lat, firstCoord.position.lon]);
       }
 
-      setAthletes(newAthletes);
+      setAthletes(prev => [...prev, ...newAthletes]);
+      
+      if (firstValidCoordinate && !mapCenter) {
+        setMapCenter(firstValidCoordinate);
+      }
     } catch (error) {
-      console.error("Failed to process URLs:", error);
-      alert("Failed to process URLs. Please check your input and try again.");
+      console.error('Error processing URLs:', error);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [mapCenter]);
 
   return {
     athletes,

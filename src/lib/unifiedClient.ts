@@ -1,144 +1,132 @@
 /**
- * Unified client functions for multi-provider tracking
- * Uses the updated unified endpoints: expand-url-batch and garmin-fetch-batch
+ * Client-side functions for processing tracking URLs and fetching data
+ * This is a compatibility layer that uses the new unified tracking service
  */
 
-import { ParsedProviderData, TrackingApiResponse, TrackingUpdatesResponse } from '@/lib/tracking/types';
+import { 
+  expandUrls, 
+  fetchTrackingData, 
+  fetchTrackingUpdates as serviceUpdates 
+} from '@/lib/tracking/service';
+import { TrackingIdentifier, TrackingApiResponse, TrackingUpdatesResponse } from '@/lib/tracking/types';
 
 /**
- * Process multiple tracking URLs and fetch their data
- * Uses the unified endpoint system
+ * Process multiple tracking URLs
  */
 export async function processTrackingUrls(urls: string[]): Promise<TrackingApiResponse[]> {
   try {
-    // Step 1: Expand and parse URLs using unified tracking endpoint
-    const expandResponse = await fetch('/api/tracking/expand-urls', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ urls })
-    });
-
-    if (!expandResponse.ok) {
-      throw new Error('Failed to expand URLs');
+    // Step 1: Expand URLs to get tracking identifiers
+    const expandResults = await expandUrls({ urls });
+    
+    // Create a map of URL to identifier for successful parses
+    const urlToIdentifier = new Map<string, TrackingIdentifier>();
+    const successfulIdentifiers: TrackingIdentifier[] = [];
+    
+    for (const result of expandResults.results) {
+      if (result.success && result.identifier) {
+        urlToIdentifier.set(result.originalUrl, result.identifier);
+        successfulIdentifiers.push(result.identifier);
+      }
     }
-
-    const { results: parsedUrls }: { results: ParsedProviderData[] } = await expandResponse.json();
-
-    // Step 2: Fetch tracking data for valid URLs using unified garmin-fetch-batch 
-    const validUrls = parsedUrls.filter(parsed => parsed.success);
-
-    if (validUrls.length === 0) {
-      console.warn('No valid tracking URLs found');
-      return parsedUrls.map(parsed => ({
-        originalUrl: parsed.originalUrl,
-        provider: parsed.provider,
+    
+    if (successfulIdentifiers.length === 0) {
+      return urls.map(url => ({
+        originalUrl: url,
+        identifier: null,
         success: false,
-        error: parsed.error || {
+        error: {
           code: 'INVALID_URL',
-          message: 'No valid URLs to process'
+          message: 'No valid tracking URLs found'
         }
       }));
     }
-
-    // Step 3: Fetch actual tracking data using unified endpoint
-    const fetchResponse = await fetch('/api/tracking/fetch-data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parsedUrls: validUrls })
-    });
-
-    if (!fetchResponse.ok) {
-      throw new Error('Failed to fetch tracking data');
-    }
-
-    const { results: trackingResults }: { results: TrackingApiResponse[] } = await fetchResponse.json();
-
-    // Step 4: Merge results with failed parsing results
-    const allResults: TrackingApiResponse[] = [];
-    const trackingMap = new Map(trackingResults.map(result => [result.originalUrl, result]));
-
-    for (const parsed of parsedUrls) {
-      if (parsed.success) {
-        const tracking = trackingMap.get(parsed.originalUrl);
-        if (tracking) {
-          allResults.push(tracking);
-        } else {
-          // Parsed successfully but tracking failed
-          allResults.push({
-            originalUrl: parsed.originalUrl,
-            provider: parsed.provider,
-            success: false,
-            error: {
-              code: 'UNKNOWN',
-              message: 'Failed to fetch tracking data'
-            }
-          });
-        }
-      } else {
-        // Parsing failed
-        allResults.push({
-          originalUrl: parsed.originalUrl,
-          provider: parsed.provider,
+    
+    // Step 2: Fetch tracking data
+    const fetchResults = await fetchTrackingData({ identifiers: successfulIdentifiers });
+    
+    // Step 3: Convert results back to API response format
+    const responses: TrackingApiResponse[] = [];
+    
+    for (const url of urls) {
+      const identifier = urlToIdentifier.get(url);
+      if (!identifier) {
+        responses.push({
+          originalUrl: url,
+          identifier: null,
           success: false,
-          error: parsed.error
+          error: {
+            code: 'INVALID_URL',
+            message: 'Could not parse URL'
+          }
+        });
+        continue;
+      }
+      
+      // Find the tracking data for this identifier
+      const trackingData = fetchResults.results.find(data => data.id === url);
+      if (trackingData) {
+        responses.push({
+          originalUrl: url,
+          identifier,
+          success: true,
+          data: trackingData
+        });
+      } else {
+        responses.push({
+          originalUrl: url,
+          identifier,
+          success: false,
+          error: {
+            code: 'PROVIDER_ERROR',
+            message: 'Failed to fetch tracking data'
+          }
         });
       }
     }
-
-    return allResults;
-
-  } catch (error) {
-    console.error('Error processing tracking URLs:', error);
     
-    // Return error results for all URLs
+    return responses;
+  } catch (error) {
     return urls.map(url => ({
       originalUrl: url,
-      provider: null,
+      identifier: null,
       success: false,
       error: {
         code: 'UNKNOWN',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Failed to process URL'
       }
     }));
   }
 }
 
 /**
- * Fetch updates for already processed URLs
- * Uses the unified tracking updates endpoint
+ * Fetch tracking updates for existing identifiers
  */
 export async function fetchTrackingUpdates(
-  parsedUrls: ParsedProviderData[], 
-  lastUpdate?: string
+  identifiers: TrackingIdentifier[], 
+  begin?: string
 ): Promise<TrackingUpdatesResponse[]> {
   try {
-    const response = await fetch('/api/tracking/fetch-updates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        parsedUrls,
-        begin: lastUpdate
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch tracking updates');
-    }
-
-    const { results } = await response.json();
-    return results;
-
-  } catch (error) {
-    console.error('Error fetching tracking updates:', error);
+    const results = await serviceUpdates({ identifiers, begin: begin || '' });
     
-    return parsedUrls.map(parsed => ({
-      originalUrl: parsed.originalUrl,
-      provider: parsed.provider,
+    // Convert to API response format
+    return results.results.map(result => ({
+      originalUrl: result.id,
+      identifier: identifiers.find(id => 
+        (id.type === 'garmin' && id.data.sessionId === result.id) ||
+        (id.type === 'strava' && id.data.beaconId === result.id)
+      ) || null,
+      success: true,
+      coordinates: result.coordinates
+    }));
+  } catch (error) {
+    return identifiers.map(identifier => ({
+      originalUrl: 'unknown',
+      identifier,
       success: false,
       coordinates: [],
       error: {
         code: 'UNKNOWN',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Failed to fetch updates'
       }
     }));
   }

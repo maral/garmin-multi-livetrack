@@ -2,7 +2,7 @@
  * Converter functions between unified tracking data and legacy AthleteData format
  */
 
-import { UnifiedTrackingData, UnifiedCoordinate, ParsedProviderData } from '@/lib/tracking/types';
+import { UnifiedTrackingData, UnifiedCoordinate, TrackingIdentifier } from '@/lib/tracking/types';
 import { AthleteData } from '@/lib/types';
 import { GarminCoordinate } from '@/lib/garmin-api';
 
@@ -12,7 +12,7 @@ import { GarminCoordinate } from '@/lib/garmin-api';
 export function convertUnifiedToAthleteData(
   unified: UnifiedTrackingData, 
   color: string, 
-  parsedData?: ParsedProviderData
+  identifier?: TrackingIdentifier
 ): AthleteData {
   // Convert unified coordinates to Garmin coordinate format
   const coordinates: GarminCoordinate[] = unified.coordinates.map((coord: UnifiedCoordinate) => ({
@@ -30,7 +30,7 @@ export function convertUnifiedToAthleteData(
 
   return {
     id: unified.id,
-    provider: unified.provider,
+    provider: identifier?.type || 'garmin',
     profile: {
       name: unified.athleteName,
       location: unified.activityType || '',
@@ -40,7 +40,7 @@ export function convertUnifiedToAthleteData(
     lastUpdate: unified.lastUpdate,
     color,
     originalUrl: unified.id, // unified.id is the original URL
-    parsedData,
+    identifier,
   };
 }
 
