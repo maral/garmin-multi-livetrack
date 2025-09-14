@@ -60,7 +60,8 @@ export default function MultiTrackApp({
 
   // Process URLs handler
   const handleProcessUrls = async () => {
-    await processUrls(urls);
+    const urlArray = urls.split('\n').filter(url => url.trim() !== '');
+    await processUrls(urlArray);
     saveOriginalUrls(urls);
     setIsLive(true);
     // Exit editing mode after successfully processing URLs
@@ -150,7 +151,7 @@ export default function MultiTrackApp({
           <div className="flex-1 min-h-0" style={{ height: "100%" }}>
             <TrackingMap
               athletes={athletes}
-              mapCenter={mapCenter}
+              mapCenter={mapCenter || [40.7128, -74.0060]} // Default to NYC coordinates
               isClient={isClient}
               calculateAthleteStats={calculateAthleteStats}
             />

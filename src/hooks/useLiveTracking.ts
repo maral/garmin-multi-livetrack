@@ -41,7 +41,7 @@ export const useLiveTracking = (
   useEffect(() => {
     if (isLive && athletes.length > 0 && !liveInterval) {
       const validAthletes = athletes.filter(
-        (athlete) => !athlete.error && athlete.sessionId && athlete.token
+        (athlete) => !athlete.error && athlete.parsedData && athlete.parsedData.success
       );
       if (validAthletes.length > 0) {
         const interval = setInterval(updateAllAthletes, LIVE_UPDATE_INTERVAL);
