@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { initializeLeafletIcons } from "@/lib/leafletIcons";
-import { calculateAthleteStats } from "@/lib/athleteUtils";
+import { useAthleteStatsCalculator } from "@/hooks/useAthleteStats";
 import { useAthleteManagement } from "@/hooks/useAthleteManagement";
-import { useLiveTracking } from "@/hooks/useLiveTracking";
-import { useEditingState } from "@/hooks/useEditingState";
 import { useAthleteModal } from "@/hooks/useAthleteModal";
+import { useEditingState } from "@/hooks/useEditingState";
+import { clearAllAthletesAction, replaceAthletesAction } from "@/lib/store/actions";
 import AthletesSummary from "@/components/AthletesSummary";
 import AthleteStatsModal from "@/components/AthleteStatsModal";
 import UrlInputForm from "@/components/UrlInputForm";
@@ -28,9 +28,25 @@ export default function MultiTrackApp({
     initializeLeafletIcons();
   }, []);
 
-  // Custom hooks for state management
-  const { athletes, isLoading, mapCenter, updateAllAthletes, processUrls } =
-    useAthleteManagement();
+  // Zustand-based hooks for state management
+  const { 
+    athletes, 
+    isLoading, 
+    mapCenter, 
+    isLiveTracking,
+    processUrls, 
+    toggleLiveTracking 
+  } = useAthleteManagement();
+
+  const {
+    selectedAthlete,
+    isStatsModalOpen,
+    handleAthleteClick,
+    handleStatsModalClose,
+  } = useAthleteModal();
+
+  // Memoized stats calculator
+  const calculateAthleteStats = useAthleteStatsCalculator();
 
   const {
     urls,
@@ -40,56 +56,41 @@ export default function MultiTrackApp({
     cancelEditing,
     resetForm,
     completeEditing,
-    saveOriginalUrls,
   } = useEditingState(initialUrls);
-
-  const {
-    isLive,
-    setIsLive,
-    liveInterval,
-    setLiveInterval,
-    toggleLiveTracking,
-  } = useLiveTracking(athletes, updateAllAthletes);
-
-  const {
-    selectedAthlete,
-    isStatsModalOpen,
-    handleAthleteClick,
-    handleStatsModalClose,
-  } = useAthleteModal();
 
   // Process URLs handler
   const handleProcessUrls = async () => {
-    const urlArray = urls.split('\n').filter(url => url.trim() !== '');
-    await processUrls(urlArray);
-    saveOriginalUrls(urls);
-    setIsLive(true);
-    // Exit editing mode after successfully processing URLs
-    if (isEditing) {
+    if (!urls.trim()) return;
+
+    const urlList = urls
+      .split("\n")
+      .map((url) => url.trim())
+      .filter((url) => url.length > 0);
+
+    if (urlList.length === 0) return;
+
+    try {
+      if (isEditing) {
+        // When editing, replace all athletes
+        await replaceAthletesAction(urlList);
+      } else {
+        // When first loading, add to existing athletes
+        await processUrls(urlList);
+      }
       completeEditing();
+      resetForm();
+    } catch (error) {
+      console.error("Error processing URLs:", error);
     }
   };
 
-  // Enhanced editing handlers
-  const handleStartEditing = () => {
-    startEditing();
-    setIsLive(false);
-  };
-
-  const handleCancelEditing = () => {
-    cancelEditing();
-    if (athletes.length > 0) {
-      setIsLive(true);
+  // Toggle live tracking
+  const handleToggleLiveTracking = () => {
+    if (!isLiveTracking && athletes.length === 0) {
+      alert("Please add some athletes first!");
+      return;
     }
-  };
-
-  const handleResetForm = () => {
-    resetForm();
-    setIsLive(false);
-    if (liveInterval) {
-      clearInterval(liveInterval);
-      setLiveInterval(null);
-    }
+    toggleLiveTracking();
   };
 
   // Load initial URLs if provided
@@ -108,8 +109,8 @@ export default function MultiTrackApp({
         urls={urls}
         setUrls={setUrls}
         onProcessUrls={handleProcessUrls}
-        onCancel={isEditing ? handleCancelEditing : undefined}
-        onClearAll={isEditing ? handleResetForm : undefined}
+        onCancel={isEditing ? cancelEditing : undefined}
+        onClearAll={isEditing ? () => clearAllAthletesAction() : undefined}
         isLoading={isLoading}
         isEditing={isEditing}
       />
@@ -122,9 +123,9 @@ export default function MultiTrackApp({
         {/* Header */}
         <MultiTrackHeader
           athletes={athletes}
-          isLive={isLive}
-          toggleLiveTracking={toggleLiveTracking}
-          onSettingsClick={handleStartEditing}
+          isLive={isLiveTracking}
+          toggleLiveTracking={handleToggleLiveTracking}
+          onSettingsClick={() => startEditing()} // Start editing on settings click
         />
 
         {/* Athletes Summary */}
@@ -143,7 +144,7 @@ export default function MultiTrackApp({
             <div className="text-center text-gray-500">
               <div className="text-lg">Loading athletes...</div>
               <div className="text-sm mt-2">
-                Processing Garmin LiveTrack URLs
+                Processing tracking URLs
               </div>
             </div>
           </div>
@@ -161,7 +162,7 @@ export default function MultiTrackApp({
             <div className="text-center text-gray-500">
               <div className="text-lg">No athletes loaded</div>
               <div className="text-sm mt-2">
-                Add some Garmin LiveTrack URLs to get started
+                Add some Garmin LiveTrack or Strava Beacon URLs to get started
               </div>
             </div>
           </div>

@@ -1,10 +1,10 @@
 # Garmin Multi LiveTrack Repository Summary
 
-Run the development server:
+When developing, the development server would be always running on port 3000 (started by the developer). Do not check if it runs, always expect it runs.
 
-```bash
-pnpm dev
-```
+Expect you are in the root of the repository, do not cd, just run the commands. We use pnpm as package manager.
+
+If you want to check types, use `npx tsc --noEmit`. Try to not use `pnpm build` too often, as it might break the dev server (but you should check it sometimes).
 
 ## Architecture Overview
 This is a Next.js 15 application that enables viewing multiple Garmin LiveTrack URLs simultaneously in two modes:

@@ -1,138 +1,79 @@
-import { useState, useCallback } from "react";
-import { AthleteData } from "@/lib/types";
-import { processTrackingUrls, fetchTrackingUpdates } from "@/lib/unifiedClient";
-import { convertUnifiedToAthleteData } from "@/lib/athleteConverters";
+/**
+ * New simplified athlete management hook using Zustand store
+ * This replaces the old useAthleteManagement hook
+ */
+import { useEffect, useCallback } from 'react';
+import { 
+  useAthletes, 
+  useIsLoading, 
+  useMapCenter,
+  useIsLiveTracking,
+  useAthleteStore 
+} from '@/lib/store/athleteStore';
+import { 
+  processUrlsAction, 
+  updateAllAthletesAction,
+  toggleLiveTrackingAction 
+} from '@/lib/store/actions';
+import { LIVE_UPDATE_INTERVAL } from '@/lib/constants';
 
 interface UseAthleteManagementReturn {
-  athletes: AthleteData[];
+  // State
+  athletes: ReturnType<typeof useAthletes>;
   isLoading: boolean;
   mapCenter: [number, number] | undefined;
-  updateAllAthletes: () => Promise<void>;
+  isLiveTracking: boolean;
+  
+  // Actions
   processUrls: (urls: string[]) => Promise<void>;
+  updateAllAthletes: () => Promise<void>;
+  toggleLiveTracking: () => void;
 }
 
 export function useAthleteManagement(): UseAthleteManagementReturn {
-  const [athletes, setAthletes] = useState<AthleteData[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [mapCenter, setMapCenter] = useState<[number, number] | undefined>();
+  // Get state from store
+  const athletes = useAthletes();
+  const isLoading = useIsLoading();
+  const mapCenter = useMapCenter();
+  const isLiveTracking = useIsLiveTracking();
+  
+  // Get just the count to avoid array reference issues
+  const athletesWithIdentifiersCount = useAthleteStore((state) => 
+    state.athletes.filter((athlete) => athlete.identifier && !athlete.error).length
+  );
 
-  const updateAllAthletes = useCallback(async () => {
-    if (athletes.length === 0) return;
+  // Memoize actions to prevent unnecessary re-renders
+  const processUrls = useCallback(processUrlsAction, []);
+  const toggleLiveTracking = useCallback(toggleLiveTrackingAction, []);
 
-    try {
-      const validAthletes = athletes.filter(
-        athlete => athlete.identifier && !athlete.error
-      );
-
-      if (validAthletes.length === 0) return;
-
-      // Create identifier array for the update function
-      const identifierArray = validAthletes.map(athlete => athlete.identifier!);
-      const updates = await fetchTrackingUpdates(identifierArray);
-      
-      const updatedAthletes = athletes.map(athlete => {
-        if (!athlete.identifier || athlete.error) return athlete;
-        
-        const update = updates.find(u => 
-          u.identifier && 
-          athlete.identifier &&
-          u.identifier.type === athlete.identifier.type &&
-          ((u.identifier.type === 'garmin' && 
-            athlete.identifier.type === 'garmin' &&
-            u.identifier.data.sessionId === athlete.identifier.data.sessionId) ||
-           (u.identifier.type === 'strava' && 
-            athlete.identifier.type === 'strava' &&
-            u.identifier.data.beaconId === athlete.identifier.data.beaconId))
-        );
-        
-        if (update && update.success && update.coordinates) {
-          // Convert unified coordinates to Garmin format for the athlete
-          const garminCoordinates = update.coordinates.map(coord => ({
-            position: { lat: coord.lat, lon: coord.lon },
-            timestamp: coord.timestamp,
-            altitude: coord.altitude,
-            speed: coord.speed,
-            heading: undefined,
-            fitnessData: undefined,
-          }));
-
-          return {
-            ...athlete,
-            coordinates: garminCoordinates,
-            lastUpdate: new Date().toISOString(),
-          };
-        }
-        
-        return athlete;
-      });
-
-      setAthletes(updatedAthletes);
-    } catch (error) {
-      console.error('Error updating athletes:', error);
+  // Live tracking effect - use stable updateAllAthletesAction directly
+  useEffect(() => {
+    if (!isLiveTracking || athletesWithIdentifiersCount === 0) {
+      return;
     }
-  }, [athletes]);
 
-  const processUrls = useCallback(async (urls: string[]) => {
-    if (urls.length === 0) return;
+    const interval = setInterval(() => {
+      updateAllAthletesAction(); // Use the action directly, not the memoized callback
+    }, LIVE_UPDATE_INTERVAL);
 
-    setIsLoading(true);
-    
-    try {
-      const results = await processTrackingUrls(urls);
-      
-      const newAthletes: AthleteData[] = [];
-      let firstValidCoordinate: [number, number] | undefined;
+    console.log('Live tracking started for', athletesWithIdentifiersCount, 'athletes');
 
-      for (const result of results) {
-        if (result.success && result.data) {
-          // Convert to athlete data format
-          const athleteData = convertUnifiedToAthleteData(
-            result.data,
-            `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`,
-            result.identifier || undefined
-          );
-
-          newAthletes.push(athleteData);
-
-          // Set map center to the first athlete with coordinates
-          if (!firstValidCoordinate && result.data.coordinates.length > 0) {
-            const firstCoord = result.data.coordinates[0];
-            firstValidCoordinate = [firstCoord.lat, firstCoord.lon];
-          }
-        } else {
-          // Create an error athlete entry
-          newAthletes.push({
-            id: result.originalUrl,
-            provider: result.identifier?.type || 'garmin',
-            profile: { name: 'Failed to load', location: '' },
-            coordinates: [],
-            coursePoints: [],
-            lastUpdate: new Date().toISOString(),
-            color: '#ff0000',
-            originalUrl: result.originalUrl,
-            error: result.error?.message || 'Unknown error',
-            identifier: result.identifier || undefined,
-          });
-        }
-      }
-
-      setAthletes(prev => [...prev, ...newAthletes]);
-      
-      if (firstValidCoordinate && !mapCenter) {
-        setMapCenter(firstValidCoordinate);
-      }
-    } catch (error) {
-      console.error('Error processing URLs:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [mapCenter]);
+    return () => {
+      clearInterval(interval);
+      console.log('Live tracking stopped');
+    };
+  }, [isLiveTracking, athletesWithIdentifiersCount]); // Keep minimal deps
 
   return {
+    // State
     athletes,
     isLoading,
     mapCenter,
-    updateAllAthletes,
+    isLiveTracking,
+    
+    // Actions
     processUrls,
+    updateAllAthletes: updateAllAthletesAction, // Use the action directly
+    toggleLiveTracking,
   };
 }

@@ -1,45 +1,21 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 import {
-  Clock,
-  Zap,
-  TrendingUp,
-  TrendingDown,
-  Heart,
-  Activity,
-} from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "./ui/dialog";
+import { Clock, TrendingUp, TrendingDown, Heart, Activity } from "lucide-react";
 import type { AthleteStatsModalProps } from "@/lib/types";
-
-// Helper functions for formatting
-const formatDistance = (meters: number): string => {
-  if (meters >= 1000) {
-    return `${(meters / 1000).toFixed(1)} km`;
-  }
-  return `${Math.round(meters)} m`;
-};
-
-const formatTime = (seconds: number): string => {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = Math.floor(seconds % 60);
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
-  }
-  return `${minutes}:${secs.toString().padStart(2, "0")}`;
-};
-
-const formatSpeed = (mps: number): string => {
-  const kmh = mps * 3.6;
-  return `${kmh.toFixed(1)} km/h`;
-};
-
-const formatElevation = (meters: number): string => {
-  return `${Math.round(meters)} m`;
-};
+import {
+  formatDistance,
+  formatElevation,
+  formatPace,
+  formatSpeed,
+  formatTime,
+} from "@/lib/athleteUtils";
 
 export default function AthleteStatsModal({
   athlete,
@@ -62,20 +38,14 @@ export default function AthleteStatsModal({
               {athlete.profile.name} - Detailed Statistics
             </DialogTitle>
             <DialogDescription>
-              Comprehensive tracking data and performance metrics for this athlete&apos;s current session.
+              Comprehensive tracking data and performance metrics for this
+              athlete&apos;s current session.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
             {stats ? (
               <>
-                {/* Basic Info */}
-                {athlete.profile.location && (
-                  <div className="text-sm text-gray-600">
-                    {athlete.profile.location}
-                  </div>
-                )}
-
                 {/* Main Stats Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -110,13 +80,13 @@ export default function AthleteStatsModal({
                     </div>
                   </div>
 
-                  <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                    <div className="flex items-center gap-2 text-red-600 mb-2">
-                      <Zap className="h-4 w-4" />
-                      <span className="text-xs font-medium">Max Speed</span>
+                  <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                    <div className="flex items-center gap-2 text-purple-600 mb-2">
+                      <Clock className="h-4 w-4" />
+                      <span className="text-xs font-medium">Average Pace</span>
                     </div>
-                    <div className="text-lg font-bold text-red-700">
-                      {formatSpeed(stats.maxSpeed)}
+                    <div className="text-lg font-bold text-purple-700">
+                      {formatPace(stats.avgPace)}
                     </div>
                   </div>
                 </div>

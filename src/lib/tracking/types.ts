@@ -144,7 +144,7 @@ export interface TrackingProvider {
     // Fetch only new coordinates since timestamp for multiple identifiers
     fetchTrackingUpdates(
         identifiers: TrackingIdentifier["data"][],
-        begin: string,
+        begin: Date,
     ): Promise<{ id: string; coordinates: UnifiedCoordinate[] }[]>;
 }
 

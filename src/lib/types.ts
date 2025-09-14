@@ -1,15 +1,16 @@
 // Shared type definitions for the multi-track application
-import type { GarminCoordinate, GarminCoursePoint } from "@/lib/garmin-api";
 import type {
   TrackingIdentifier,
   TrackingType,
+  UnifiedCoordinate,
+  UnifiedStats,
 } from "@/lib/tracking/types";
 
 export interface AthleteStats {
   totalDistance: number;
   totalTime: number;
   avgSpeed: number;
-  maxSpeed: number;
+  avgPace: number; // minutes per km
   elevationGain: number;
   elevationLoss: number;
   minAltitude: number;
@@ -23,8 +24,7 @@ export interface AthleteData {
   id: string;
   provider: TrackingType;
   profile: { name: string; location: string };
-  coordinates: GarminCoordinate[]; // Still using Garmin format for backward compatibility
-  coursePoints?: GarminCoursePoint[];
+  coordinates: UnifiedCoordinate[]; // Now using unified format!
   lastUpdate: string;
   color: string;
   originalUrl: string;
@@ -32,6 +32,11 @@ export interface AthleteData {
   isLoading?: boolean;
   // Store tracking identifier for updates
   identifier?: TrackingIdentifier;
+  // Store native stats from provider (Strava stats, etc.)
+  stats?: UnifiedStats;
+  // Activity type and metadata
+  activityType?: string;
+  batteryLevel?: number;
 }
 
 // Component props interfaces

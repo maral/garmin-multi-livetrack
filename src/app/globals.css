@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "react-leaflet-markercluster/styles";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -128,4 +129,21 @@
 
 [data-slot="dialog-content"] {
   z-index: 10000 !important;
+}
+
+/* Style for permanent athlete name tooltips */
+.athlete-name-tooltip {
+  background: rgba(0, 0, 0, 0.8) !important;
+  border: none !important;
+  border-radius: 4px !important;
+  color: white !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 4px 8px !important;
+  white-space: nowrap !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+.athlete-name-tooltip::before {
+  border-top-color: rgba(0, 0, 0, 0.8) !important;
 }
