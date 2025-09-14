@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from "react";
@@ -11,7 +12,7 @@ interface MarkerClusterGroupProps {
   removeOutsideVisibleBounds?: boolean;
   animate?: boolean;
   maxClusterRadius?: number;
-  iconCreateFunction?: (cluster: any) => any;
+  iconCreateFunction?: (cluster: unknown) => unknown;
 }
 
 // Dynamic import with proper type handling
@@ -35,16 +36,20 @@ export default function MarkerClusterWrapper({ children }: MarkerClusterWrapperP
       removeOutsideVisibleBounds={true}
       animate={true}
       maxClusterRadius={60}
-      iconCreateFunction={(cluster: any) => {
+      iconCreateFunction={(cluster: unknown) => {
         // This will be available via window.L after leaflet loads
-        if (typeof window !== "undefined" && (window as any).L) {
+        if (typeof window !== "undefined" && (window as unknown as { L?: unknown }).L) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const L = (window as any).L;
-          const count = cluster.getChildCount();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const clusterAny = cluster as any;
+          const count = clusterAny.getChildCount();
           const size = count < 10 ? 'small' : count < 100 ? 'medium' : 'large';
           
           // Get athlete names from the markers in the cluster
-          const markers = cluster.getAllChildMarkers();
+          const markers = clusterAny.getAllChildMarkers();
           const athleteNames = markers
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .map((marker: any) => {
               // Try to extract athlete name from marker options or popup content
               const popup = marker.getPopup();

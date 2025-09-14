@@ -7,7 +7,6 @@ import type { AthleteData } from "@/lib/types";
 
 interface BoundsFitterProps {
   athletes: AthleteData[];
-  calculateAthleteStats: (athlete: AthleteData) => any;
 }
 
 /**
@@ -15,12 +14,14 @@ interface BoundsFitterProps {
  * Only fits bounds when the count of valid athletes increases (new athletes added),
  * not during live coordinate updates to preserve user's current view.
  */
-export default function BoundsFitter({
-  athletes,
-  calculateAthleteStats,
-}: BoundsFitterProps) {
+export default function BoundsFitter({ athletes }: BoundsFitterProps) {
   const map = useMap();
   const previousValidCountRef = useRef(0);
+
+  // Extract the complex expression to a separate variable for static checking
+  const athleteLoadingState = athletes
+    .map((a) => (a.coordinates.length > 0 ? "loaded" : "empty"))
+    .join(",");
 
   useEffect(() => {
     if (!map) return;
@@ -56,10 +57,8 @@ export default function BoundsFitter({
     previousValidCountRef.current = currentValidCount;
   }, [
     map,
-    athletes.length, // When number of athletes changes
-    athletes
-      .map((a) => (a.coordinates.length > 0 ? "loaded" : "empty"))
-      .join(","), // When athletes get initial data
+    athletes,
+    athleteLoadingState, // Use the extracted variable
   ]);
 
   return null; // This component doesn't render anything

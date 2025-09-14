@@ -159,7 +159,7 @@ export default function AthleteStatsModal({
                       <Clock className="h-4 w-4 text-green-600" />
                       <span className="text-gray-600">Last Update:</span>
                       <span className="font-medium">
-                        {new Date(athlete.lastUpdate).toLocaleString()}
+                        {new Date(athlete.lastUpdate).toLocaleTimeString()}
                       </span>
                     </div>
                   </div>

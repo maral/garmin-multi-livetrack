@@ -61,7 +61,6 @@ export default function TrackingMap({
           {/* Component to handle bounds fitting */}
           <BoundsFitter
             athletes={athletes}
-            calculateAthleteStats={calculateAthleteStats}
           />
 
           {/* Render routes first (leader's route on top) */}
