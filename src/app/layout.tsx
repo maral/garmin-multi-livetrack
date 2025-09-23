@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Garmin Multi LiveTrack",
+  title: "Garmin & Strava Multi LiveTrack",
   description:
-    "A dynamic grid application for showing multiple Garmin LiveTrack maps in a single view.",
+    "A dynamic grid application for showing multiple Garmin LiveTrack or Strava Beacon URLs in a single view.",
   icons: {
     icon: "/favicon.png",
   },
