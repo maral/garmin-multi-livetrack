@@ -1,6 +1,6 @@
 export const ATHLETE_COLORS = [
   "#ff0000",
-  "#00ff00", 
+  "#ff1493",
   "#0000ff",
   "#ffff00",
   "#ff00ff",
